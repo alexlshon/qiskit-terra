@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017.
@@ -98,6 +96,14 @@ class BaseBackend(ABC):
             str: the name of the backend.
         """
         return self._configuration.backend_name
+
+    def version(self):
+        """Return the backend version.
+
+        Returns:
+            str: the X.X.X version of the backend.
+        """
+        return self._configuration.backend_version
 
     def __str__(self):
         return self.name()

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017, 2019.
@@ -17,19 +15,16 @@ Parameter Class for variable parameters.
 
 from uuid import uuid4
 
-import sympy
-
 from .parameterexpression import ParameterExpression
 
 
 class Parameter(ParameterExpression):
-    """Parameter Class for variable parameters"""
+    """Parameter Class for variable parameters."""
 
-    def __new__(cls, _, uuid=None):
+    def __new__(cls, name, uuid=None):  # pylint:disable=unused-argument
         # Parameter relies on self._uuid being set prior to other attributes
         # (e.g. symbol_map) which may depend on self._uuid for Parameter's hash
         # or __eq__ functions.
-
         obj = object.__new__(cls)
 
         if uuid is None:
@@ -37,6 +32,7 @@ class Parameter(ParameterExpression):
         else:
             obj._uuid = uuid
 
+        obj._hash = hash(obj._uuid)
         return obj
 
     def __getnewargs__(self):
@@ -48,7 +44,8 @@ class Parameter(ParameterExpression):
     def __init__(self, name):
         self._name = name
 
-        symbol = sympy.Symbol(name)
+        from sympy import Symbol
+        symbol = Symbol(name)
         super().__init__(symbol_map={self: symbol}, expr=symbol)
 
     def subs(self, parameter_map):
@@ -73,7 +70,12 @@ class Parameter(ParameterExpression):
         return '{}({})'.format(self.__class__.__name__, self.name)
 
     def __eq__(self, other):
-        return isinstance(other, Parameter) and self._uuid == other._uuid
+        if isinstance(other, Parameter):
+            return self._uuid == other._uuid
+        elif isinstance(other, ParameterExpression):
+            return super().__eq__(other)
+        else:
+            return False
 
     def __hash__(self):
-        return hash(self._uuid)
+        return self._hash

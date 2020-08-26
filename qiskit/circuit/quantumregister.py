@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017.
@@ -17,7 +15,7 @@ Quantum register reference object.
 """
 import itertools
 
-from qiskit.exceptions import QiskitError
+from qiskit.circuit.exceptions import CircuitError
 from .register import Register
 from .bit import Bit
 
@@ -26,11 +24,21 @@ class Qubit(Bit):
     """Implement a quantum bit."""
 
     def __init__(self, register, index):
+        """Creates a qubit.
+
+        Args:
+            register (QuantumRegister): a quantum register.
+            index (int): the index to insert the qubit
+
+        Raises:
+            CircuitError: if the provided register is not a valid :class:`QuantumRegister`
+        """
+
         if isinstance(register, QuantumRegister):
             super().__init__(register, index)
         else:
-            raise QiskitError('Qubit needs a QuantumRegister and %s was provided' %
-                              type(register).__name__)
+            raise CircuitError('Qubit needs a QuantumRegister and %s was provided' %
+                               type(register).__name__)
 
 
 class QuantumRegister(Register):
@@ -44,3 +52,17 @@ class QuantumRegister(Register):
     def qasm(self):
         """Return OPENQASM string for this register."""
         return "qreg %s[%d];" % (self.name, self.size)
+
+
+class AncillaQubit(Qubit):
+    """A qubit used as ancillary qubit."""
+    pass
+
+
+class AncillaRegister(QuantumRegister):
+    """Implement an ancilla register."""
+    # Counter for the number of instances in this class.
+    instances_counter = itertools.count()
+    # Prefix to use for auto naming.
+    prefix = 'a'
+    bit_type = AncillaQubit

@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017, 2019.
@@ -16,7 +14,8 @@
 
 import numpy
 
-from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit, QiskitError
+from qiskit import QuantumRegister, ClassicalRegister, QuantumCircuit
+from qiskit.circuit.exceptions import CircuitError
 from qiskit.test import QiskitTestCase
 
 
@@ -35,13 +34,13 @@ class TestRegisterlessCircuit(QiskitTestCase):
     def test_circuit_constructor_wires_wrong(self):
         """Create a registerless QuantumCircuit wrongly
         """
-        self.assertRaises(QiskitError, QuantumCircuit, 1, 2, 3)  # QuantumCircuit(1, 2, 3)
+        self.assertRaises(CircuitError, QuantumCircuit, 1, 2, 3)  # QuantumCircuit(1, 2, 3)
 
     def test_circuit_constructor_wires_wrong_mix(self):
         """Create an almost-registerless QuantumCircuit
         """
         # QuantumCircuit(1, ClassicalRegister(2))
-        self.assertRaises(QiskitError, QuantumCircuit, 1, ClassicalRegister(2))
+        self.assertRaises(CircuitError, QuantumCircuit, 1, ClassicalRegister(2))
 
 
 class TestGatesOnWires(QiskitTestCase):
@@ -154,7 +153,7 @@ class TestGatesOnWires(QiskitTestCase):
         qreg = QuantumRegister(2)
 
         circuit = QuantumCircuit(qreg)
-        self.assertRaises(QiskitError, circuit.h, 99)  # circuit.h(99)
+        self.assertRaises(CircuitError, circuit.h, 99)  # circuit.h(99)
 
     def test_circuit_cwire_out_of_range(self):
         """Fail if classical wire is out of range.
@@ -163,7 +162,7 @@ class TestGatesOnWires(QiskitTestCase):
         creg = ClassicalRegister(2)
 
         circuit = QuantumCircuit(qreg, creg)
-        self.assertRaises(QiskitError, circuit.measure, 1, 99)  # circuit.measure(1, 99)
+        self.assertRaises(CircuitError, circuit.measure, 1, 99)  # circuit.measure(1, 99)
 
     def test_circuit_initialize(self):
         """Test initialize on wires.
@@ -273,7 +272,7 @@ class TestGatesOnWireRange(QiskitTestCase):
         """
         qreg = QuantumRegister(2)
         circuit = QuantumCircuit(qreg)
-        self.assertRaises(QiskitError, circuit.h, range(9, 99))  # circuit.h(range(9,99))
+        self.assertRaises(CircuitError, circuit.h, range(9, 99))  # circuit.h(range(9,99))
 
     def test_circuit_cwire_out_of_range(self):
         """Fail if classical wire is out of range.
@@ -282,7 +281,7 @@ class TestGatesOnWireRange(QiskitTestCase):
         creg = ClassicalRegister(2)
         circuit = QuantumCircuit(qreg, creg)
         # circuit.measure(1, range(9,99))
-        self.assertRaises(QiskitError, circuit.measure, 1, range(9, 99))
+        self.assertRaises(CircuitError, circuit.measure, 1, range(9, 99))
 
 
 class TestGatesOnWireSlice(QiskitTestCase):
@@ -417,7 +416,7 @@ class TestGatesOnWireSlice(QiskitTestCase):
         """
         qreg = QuantumRegister(2)
         circuit = QuantumCircuit(qreg)
-        self.assertRaises(QiskitError, circuit.h, slice(9, 99))  # circuit.h(slice(9,99))
+        self.assertRaises(CircuitError, circuit.h, slice(9, 99))  # circuit.h(slice(9,99))
 
     def test_circuit_cwire_out_of_range(self):
         """Fail if classical wire is out of range.
@@ -426,7 +425,7 @@ class TestGatesOnWireSlice(QiskitTestCase):
         creg = ClassicalRegister(2)
         circuit = QuantumCircuit(qreg, creg)
         # circuit.measure(1, slice(9,99))
-        self.assertRaises(QiskitError, circuit.measure, 1, slice(9, 99))
+        self.assertRaises(CircuitError, circuit.measure, 1, slice(9, 99))
 
     def test_wire_np_2d_array(self):
         """Test gate wire with numpy array (two-dimensional). Raises.
@@ -434,4 +433,4 @@ class TestGatesOnWireSlice(QiskitTestCase):
         numpy_arr = numpy.array([[0, 1], [2, 3]])
         qreg = QuantumRegister(4)
         circuit = QuantumCircuit(qreg)
-        self.assertRaises(QiskitError, circuit.h, numpy_arr)  # circuit.h(numpy_arr)
+        self.assertRaises(CircuitError, circuit.h, numpy_arr)  # circuit.h(numpy_arr)

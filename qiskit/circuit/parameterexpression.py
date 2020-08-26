@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017, 2019.
@@ -19,9 +17,8 @@ import numbers
 import operator
 
 import numpy
-import sympy
 
-from qiskit.exceptions import QiskitError
+from qiskit.circuit.exceptions import CircuitError
 
 
 class ParameterExpression():
@@ -46,6 +43,10 @@ class ParameterExpression():
         """Returns a set of the unbound Parameters in the expression."""
         return set(self._parameter_symbols.keys())
 
+    def conjugate(self):
+        """Return the conjugate, which is the ParameterExpression itself, since it is real."""
+        return self
+
     def bind(self, parameter_values):
         """Binds the provided set of parameters to their corresponding values.
 
@@ -54,14 +55,14 @@ class ParameterExpression():
                                      numeric value to which they will be bound.
 
         Raises:
-            QiskitError:
+            CircuitError:
                 - If parameter_values contains Parameters outside those in self.
                 - If a non-numeric value is passed in parameter_values.
             ZeroDivisionError:
                 - If binding the provided values requires division by zero.
 
         Returns:
-            ParameterExpression: a new expession parameterized by any parameters
+            ParameterExpression: a new expression parameterized by any parameters
                 which were not bound by parameter_values.
         """
 
@@ -94,33 +95,41 @@ class ParameterExpression():
 
         Args:
             parameter_map (dict): Mapping from Parameters in self to the
-                                  Parameter instances with which they should be
-                                  replaced.
+                                  ParameterExpression instances with which they
+                                  should be replaced.
 
         Raises:
-            QiskitError:
+            CircuitError:
                 - If parameter_map contains Parameters outside those in self.
                 - If the replacement Parameters in parameter_map would result in
                   a name conflict in the generated expression.
 
         Returns:
-            ParameterExpression: a new expession with the specified parameters
+            ParameterExpression: a new expression with the specified parameters
                                  replaced.
         """
 
-        self._raise_if_passed_unknown_parameters(parameter_map.keys())
-        self._raise_if_parameter_names_conflict(parameter_map.keys())
+        inbound_parameters = {p
+                              for replacement_expr in parameter_map.values()
+                              for p in replacement_expr.parameters}
 
-        new_parameter_symbols = {p: sympy.Symbol(p.name)
-                                 for p in parameter_map.values()}
+        self._raise_if_passed_unknown_parameters(parameter_map.keys())
+        self._raise_if_parameter_names_conflict(inbound_parameters, parameter_map.keys())
+
+        from sympy import Symbol
+        new_parameter_symbols = {p: Symbol(p.name)
+                                 for p in inbound_parameters}
 
         # Include existing parameters in self not set to be replaced.
         new_parameter_symbols.update({p: s
                                       for p, s in self._parameter_symbols.items()
                                       if p not in parameter_map})
 
+        # If new_param is an expr, we'll need to construct a matching sympy expr
+        # but with our sympy symbols instead of theirs.
+
         symbol_map = {
-            self._parameter_symbols[old_param]: new_parameter_symbols[new_param]
+            self._parameter_symbols[old_param]: new_param._symbol_expr
             for old_param, new_param in parameter_map.items()
         }
 
@@ -131,27 +140,30 @@ class ParameterExpression():
     def _raise_if_passed_unknown_parameters(self, parameters):
         unknown_parameters = parameters - self.parameters
         if unknown_parameters:
-            raise QiskitError('Cannot bind Parameters ({}) not present in '
-                              'expression.'.format(
-                                  [str(p) for p in unknown_parameters]))
+            raise CircuitError('Cannot bind Parameters ({}) not present in '
+                               'expression.'.format([str(p) for p in unknown_parameters]))
 
     def _raise_if_passed_non_real_value(self, parameter_values):
         nonreal_parameter_values = {p: v for p, v in parameter_values.items()
                                     if not isinstance(v, numbers.Real)}
         if nonreal_parameter_values:
-            raise QiskitError('Expression cannot bind non-real or non-numeric '
-                              'values ({}).'.format(nonreal_parameter_values))
+            raise CircuitError('Expression cannot bind non-real or non-numeric '
+                               'values ({}).'.format(nonreal_parameter_values))
 
-    def _raise_if_parameter_names_conflict(self, other_parameters):
+    def _raise_if_parameter_names_conflict(self, inbound_parameters, outbound_parameters=None):
+        if outbound_parameters is None:
+            outbound_parameters = set()
+
         self_names = {p.name: p for p in self.parameters}
-        other_names = {p.name: p for p in other_parameters}
+        inbound_names = {p.name: p for p in inbound_parameters}
+        outbound_names = {p.name: p for p in outbound_parameters}
 
-        shared_names = self_names.keys() & other_names.keys()
+        shared_names = (self_names.keys() - outbound_names.keys()) & inbound_names.keys()
         conflicting_names = {name for name in shared_names
-                             if self_names[name] != other_names[name]}
+                             if self_names[name] != inbound_names[name]}
         if conflicting_names:
-            raise QiskitError('Name conflict applying operation for parameters: '
-                              '{}'.format(conflicting_names))
+            raise CircuitError('Name conflict applying operation for parameters: '
+                               '{}'.format(conflicting_names))
 
     def _apply_operation(self, operation, other, reflected=False):
         """Base method implementing math operations between Parameters and
@@ -159,14 +171,14 @@ class ParameterExpression():
 
         Args:
             operation (function): One of operator.{add,sub,mul,truediv}.
-            other (Parameter or number.real): The second argument to be used
+            other (Parameter or numbers.Real): The second argument to be used
                with self in operation.
             reflected (bool): Optional - The default ordering is
                 "self operator other". If reflected is True, this is switched
                 to "other operator self". For use in e.g. __radd__, ...
 
         Raises:
-            QiskitError:
+            CircuitError:
                 - If parameter_map contains Parameters outside those in self.
                 - If the replacement Parameters in parameter_map would result in
                   a name conflict in the generated expression.
@@ -211,6 +223,9 @@ class ParameterExpression():
     def __mul__(self, other):
         return self._apply_operation(operator.mul, other)
 
+    def __neg__(self):
+        return self._apply_operation(operator.mul, -1.0)
+
     def __rmul__(self, other):
         return self._apply_operation(operator.mul, other, reflected=True)
 
@@ -232,7 +247,6 @@ class ParameterExpression():
         if self.parameters:
             raise TypeError('ParameterExpression with unbound parameters ({}) '
                             'cannot be cast to a float.'.format(self.parameters))
-
         return float(self._symbol_expr)
 
     def __copy__(self):
@@ -240,3 +254,9 @@ class ParameterExpression():
 
     def __deepcopy__(self, memo=None):
         return self
+
+    def __eq__(self, other):
+        from sympy import srepr
+        return (isinstance(other, ParameterExpression)
+                and self.parameters == other.parameters
+                and srepr(self._symbol_expr) == srepr(other._symbol_expr))

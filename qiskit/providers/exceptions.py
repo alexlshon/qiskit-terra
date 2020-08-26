@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017, 2018.
@@ -31,5 +29,17 @@ class JobTimeoutError(JobError):
 
 class QiskitBackendNotFoundError(QiskitError):
     """Base class for errors raised while looking for a backend."""
+
+    pass
+
+
+class BackendPropertyError(QiskitError):
+    """Base class for errors raised while looking for a backend property."""
+
+    pass
+
+
+class BackendConfigurationError(QiskitError):
+    """Base class for errors raised by the BackendConfiguration."""
 
     pass

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017.
@@ -13,14 +12,15 @@
 
 """Common utilities for Qiskit."""
 
+import multiprocessing as mp
 import platform
 import re
 import socket
 import sys
 import warnings
+import functools
 
 import psutil
-from marshmallow.warnings import ChangedInMarshmallow3Warning
 
 
 def _check_python_version():
@@ -53,11 +53,6 @@ def _filter_deprecation_warnings():
     except AttributeError:
         # ._add_filter is internal and not available in some Python versions.
         pass
-
-    # Add a filter for ignoring ChangedInMarshmallow3Warning, as we depend on
-    # marhsmallow 2 explicitly. 2.17.0 introduced new deprecation warnings that
-    # are useful for eventually migrating, but too verbose for our purposes.
-    warnings.simplefilter('ignore', category=ChangedInMarshmallow3Warning)
 
 
 _check_python_version()
@@ -101,3 +96,68 @@ def _has_connection(hostname, port):
         return True
     except Exception:  # pylint: disable=broad-except
         return False
+
+
+def deprecate_arguments(kwarg_map):
+    """Decorator to automatically alias deprecated agrument names and warn upon use."""
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            if kwargs:
+                _rename_kwargs(func.__name__, kwargs, kwarg_map)
+            return func(*args, **kwargs)
+        return wrapper
+    return decorator
+
+
+def deprecate_function(msg):
+    """Emit a warning prior to calling decorated function.
+
+    Args:
+        msg (str): Warning message to emit.
+
+    Returns:
+        Callable: The decorated, deprecated callable.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            # warn only once
+            if not wrapper._warned:
+                warnings.warn(msg, DeprecationWarning, stacklevel=2)
+                wrapper._warned = True
+            return func(*args, **kwargs)
+        wrapper._warned = False
+        return wrapper
+    return decorator
+
+
+def _rename_kwargs(func_name, kwargs, kwarg_map):
+    for old_arg, new_arg in kwarg_map.items():
+        if old_arg in kwargs:
+            if new_arg in kwargs:
+                raise TypeError('{} received both {} and {} (deprecated).'.format(
+                    func_name, new_arg, old_arg))
+
+            warnings.warn('{} keyword argument {} is deprecated and '
+                          'replaced with {}.'.format(
+                              func_name, old_arg, new_arg),
+                          DeprecationWarning, stacklevel=3)
+
+            kwargs[new_arg] = kwargs.pop(old_arg)
+
+
+def is_main_process():
+    """Checks whether the current process is the main one"""
+
+    return not (
+        isinstance(mp.current_process(),
+                   (mp.context.ForkProcess, mp.context.SpawnProcess))
+
+        # In python 3.5 and 3.6, processes created by "ProcessPoolExecutor" are not
+        # mp.context.ForkProcess or mp.context.SpawnProcess. As a workaround,
+        # "name" of the process is checked instead.
+        or (sys.version_info[0] == 3
+            and (sys.version_info[1] == 5 or sys.version_info[1] == 6)
+            and mp.current_process().name != 'MainProcess')
+    )

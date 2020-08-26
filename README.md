@@ -36,7 +36,8 @@ $ python
 >>> qc.cx(0, 1)
 >>> qc.measure([0,1], [0,1])
 >>> backend_sim = BasicAer.get_backend('qasm_simulator')
->>> result = execute(qc, backend_sim).result()
+>>> transpiled_qc = transpile(qc, backend_sim)
+>>> result = backend_sim.run(assemble(transpiled_qc)).result()
 >>> print(result.get_counts(qc))
 ```
 
@@ -46,7 +47,7 @@ In this case, the output will be:
 {'00': 513, '11': 511}
 ```
 
-A script is available [here](examples/python/hello_quantum.py), where we also show how to
+A script is available [here](examples/python/ibmq/hello_quantum.py), where we also show how to
 run the same program on a real quantum computer via IBMQ.  
 
 ### Executing your code on a real quantum chip
@@ -95,7 +96,7 @@ If you'd like to contribute to Qiskit Terra, please take a look at our
 [contribution guidelines](CONTRIBUTING.md). This project adheres to Qiskit's [code of conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 
 We use [GitHub issues](https://github.com/Qiskit/qiskit-terra/issues) for tracking requests and bugs. Please
-[join the Qiskit Slack community](https://join.slack.com/t/qiskit/shared_invite/enQtNjQ5OTc5ODM1ODYyLTc2YWJhOWViZDA2OWI5N2EyMjIxN2YwODM5MWQyN2Q3MjczOGRlMDU4MzMxMWE5MzZjMzEzYzM3MmJiMzU5MzU)
+[join the Qiskit Slack community](https://ibm.co/joinqiskitslack)
 and use our [Qiskit Slack channel](https://qiskit.slack.com) for discussion and simple questions.
 For questions that are more suited for a forum we use the Qiskit tag in the [Stack Exchange](https://quantumcomputing.stackexchange.com/questions/tagged/qiskit).
 
@@ -108,6 +109,27 @@ Now you're set up and ready to check out some of the other examples from our
 
 Qiskit Terra is the work of [many people](https://github.com/Qiskit/qiskit-terra/graphs/contributors) who contribute
 to the project at different levels. If you use Qiskit, please cite as per the included [BibTeX file](https://github.com/Qiskit/qiskit/blob/master/Qiskit.bib).
+
+## Changelog and Release Notes
+
+The changelog for a particular release is dynamically generated and gets
+written to the release page on Github for each release. For example, you can
+find the page for the `0.9.0` release here:
+
+https://github.com/Qiskit/qiskit-terra/releases/tag/0.9.0
+
+The changelog for the current release can be found in the releases tab:
+![](https://img.shields.io/github/release/Qiskit/qiskit-terra.svg?style=popout-square)
+The changelog provides a quick overview of noteble changes for a given
+release.
+
+Additionally, as part of each release detailed release notes are written to
+document in detail what has changed as part of a release. This includes any
+documentation on potential breaking changes on upgrade and new features.
+For example, You can find the release notes for the `0.9.0` release in the
+Qiskit documentation here:
+
+https://qiskit.org/documentation/release_notes.html#terra-0-9
 
 ## License
 

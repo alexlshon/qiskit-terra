@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2019.
@@ -70,8 +68,7 @@ class TestPassManagerDrawer(QiskitVisualizationTestCase):
         self.pass_manager.append(CXDirection(coupling_map))
         self.pass_manager.append(RemoveResetInZeroState())
 
-    @unittest.skipIf(not HAS_GRAPHVIZ,
-                     'Graphviz not installed.')
+    @unittest.skipIf(not HAS_GRAPHVIZ, 'Graphviz not installed.')
     def test_pass_manager_drawer_basic(self):
         """Test to see if the drawer draws a normal pass manager correctly"""
         filename = self._get_resource_path('current_standard.dot')

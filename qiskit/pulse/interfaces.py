@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017, 2019.
@@ -19,8 +17,6 @@ from abc import ABCMeta, abstractmethod
 from typing import Tuple, List, Union, Optional
 
 from qiskit.pulse.channels import Channel
-
-from .timeslots import TimeslotCollection
 
 # pylint: disable=missing-type-doc
 
@@ -53,11 +49,6 @@ class ScheduleComponent(metaclass=ABCMeta):
         pass
 
     @property
-    def buffer(self) -> int:
-        """Buffer for schedule. To be used when appending"""
-        pass
-
-    @property
     @abstractmethod
     def stop_time(self) -> int:
         """Stopping time of this schedule component."""
@@ -80,12 +71,6 @@ class ScheduleComponent(metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def timeslots(self) -> TimeslotCollection:
-        """Occupied time slots by this schedule component."""
-        pass
-
-    @property
-    @abstractmethod
     def _children(self) -> Tuple[Union[int, 'ScheduleComponent']]:
         """Child nodes of this schedule component. """
         pass
@@ -102,20 +87,10 @@ class ScheduleComponent(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def union(self, *schedules: List['ScheduleComponent'],
-              name: Optional[str] = None) -> 'ScheduleComponent':
-        """Return a new schedule which is the union of the parent `Schedule` and `schedule`.
-
-        Args:
-            schedules: Schedules to be take the union with the parent `Schedule`.
-            name: Name of the new schedule. Defaults to name of parent
-        """
-        pass
-
-    @abstractmethod
     def shift(self: 'ScheduleComponent', time: int,
               name: Optional[str] = None) -> 'ScheduleComponent':
         """Return a new schedule shifted forward by `time`.
+
         Args:
             time: Time to shift by
             name: Name of the new schedule. Defaults to name of parent
@@ -124,27 +99,24 @@ class ScheduleComponent(metaclass=ABCMeta):
 
     @abstractmethod
     def insert(self, start_time: int, schedule: 'ScheduleComponent',
-               buffer: bool = False,
                name: Optional[str] = None) -> 'ScheduleComponent':
         """Return a new schedule with `schedule` inserted at `start_time` of `self`.
 
         Args:
             start_time: time to be inserted
             schedule: schedule to be inserted
-            buffer: Obey buffer when appending
             name: Name of the new schedule. Defaults to name of parent
         """
         pass
 
     @abstractmethod
-    def append(self, schedule: 'ScheduleComponent', buffer: bool = True,
+    def append(self, schedule: 'ScheduleComponent',
                name: Optional[str] = None) -> 'ScheduleComponent':
         """Return a new schedule with `schedule` inserted at the maximum time over
         all channels shared between `self` and `schedule`.
 
         Args:
             schedule: schedule to be appended
-            buffer: Obey buffer when appending
             name: Name of the new schedule. Defaults to name of parent
         """
         pass

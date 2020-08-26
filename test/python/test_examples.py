@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2019.
@@ -33,6 +31,9 @@ class TestPythonExamples(QiskitTestCase):
     """Test example scripts"""
 
     @unittest.skipIf(os.name == 'nt', 'Skip on windows until #2616 is fixed')
+    @unittest.skipIf(sys.platform == 'darwin' and sys.version_info[1] == 8,
+                     "Multiprocess spawn fails on macOS python 3.8 without "
+                     "__name__ == '__main__' guard")
     def test_all_examples(self):
         """Execute the example python files and pass if it returns 0."""
         examples = []
@@ -52,6 +53,9 @@ class TestPythonExamples(QiskitTestCase):
                 self.assertEqual(run_example.returncode, 0, error_string)
 
     @unittest.skipIf(os.name == 'nt', 'Skip on windows until #2616 is fixed')
+    @unittest.skipIf(sys.platform == 'darwin' and sys.version_info[1] == 8,
+                     "Multiprocess spawn fails on macOS python 3.8 without "
+                     "__name__ == '__main__' guard")
     @online_test
     @slow_test
     def test_all_ibmq_examples(self, qe_token, qe_url):

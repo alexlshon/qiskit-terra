@@ -1,5 +1,3 @@
-# -*- coding: utf-8 -*-
-
 # This code is part of Qiskit.
 #
 # (C) Copyright IBM 2017.
@@ -52,12 +50,13 @@ class TestCircuitVisualizationImplementation(QiskitVisualizationTestCase):
         circuit.sdg(qr[0])
         circuit.t(qr[0])
         circuit.tdg(qr[0])
-        circuit.iden(qr[0])
+        circuit.sx(qr[0])
+        circuit.sxdg(qr[0])
+        circuit.i(qr[0])
         circuit.reset(qr[0])
         circuit.rx(pi, qr[0])
         circuit.ry(pi, qr[0])
         circuit.rz(pi, qr[0])
-        circuit.u0(pi, qr[0])
         circuit.u1(pi, qr[0])
         circuit.u2(pi, pi, qr[0])
         circuit.u3(pi, pi, pi, qr[0])
@@ -69,6 +68,8 @@ class TestCircuitVisualizationImplementation(QiskitVisualizationTestCase):
         circuit.cu1(pi, qr[0], qr[1])
         circuit.cu3(pi, pi, pi, qr[0], qr[1])
         circuit.crz(pi, qr[0], qr[1])
+        circuit.cry(pi, qr[0], qr[1])
+        circuit.crx(pi, qr[0], qr[1])
         circuit.ccx(qr[0], qr[1], qr[2])
         circuit.cswap(qr[0], qr[1], qr[2])
         circuit.measure(qr, cr)
@@ -99,13 +100,14 @@ class TestCircuitVisualizationImplementation(QiskitVisualizationTestCase):
     def test_text_drawer(self):
         filename = self._get_resource_path('current_textplot.txt')
         qc = self.sample_circuit()
-        output = circuit_drawer(qc, filename=filename, output="text", line_length=-1)
-        self.assertFilesAreEqual(filename, self.text_reference)
-        os.remove(filename)
+        output = circuit_drawer(qc, filename=filename, output="text", fold=-1, initial_state=True,
+                                cregbundle=False)
         try:
             encode(str(output), encoding='cp437')
         except UnicodeEncodeError:
             self.fail("_text_circuit_drawer() should only use extended ascii (aka code page 437).")
+        self.assertFilesAreEqual(filename, self.text_reference)
+        os.remove(filename)
 
 
 if __name__ == '__main__':
