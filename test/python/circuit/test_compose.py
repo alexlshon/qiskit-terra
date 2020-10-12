@@ -25,6 +25,7 @@ class TestCircuitCompose(QiskitTestCase):
     """Test composition of two circuits."""
 
     def setUp(self):
+        super().setUp()
         qreg1 = QuantumRegister(3, 'lqr_1')
         qreg2 = QuantumRegister(2, 'lqr_2')
         creg = ClassicalRegister(2, 'lcr')
@@ -430,6 +431,16 @@ class TestCircuitCompose(QiskitTestCase):
         circuit_expected.cx(self.left_qubit4, self.left_qubit0)
 
         self.assertEqual(circuit_composed, circuit_expected)
+
+    def test_compose_calibrations(self):
+        """Test that composing two circuits updates calibrations."""
+        circ_left = QuantumCircuit(1)
+        circ_left.add_calibration('h', [0], None)
+        circ_right = QuantumCircuit(1)
+        circ_right.add_calibration('rx', [0], None)
+        circ = circ_left.compose(circ_right)
+        self.assertEqual(len(circ.calibrations), 2)
+        self.assertEqual(len(circ_left.calibrations), 1)
 
     def test_compose_one_liner(self):
         """Test building a circuit in one line, for fun.

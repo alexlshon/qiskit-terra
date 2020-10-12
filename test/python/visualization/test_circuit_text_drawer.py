@@ -1056,6 +1056,7 @@ class TestTextDrawerMultiQGates(QiskitTestCase):
 
         self.assertEqual(str(_text_circuit_drawer(qc)), expected)
 
+    @unittest.skip("Add back when Multiplexer is implemented in terms of UCGate")
     def test_multiplexer(self):
         """ Test Multiplexer.
         See https://github.com/Qiskit/qiskit-terra/pull/2238#issuecomment-487630014"""
@@ -1264,6 +1265,17 @@ class TestTextDrawerParams(QiskitTestCase):
         circuit = circuit.bind_parameters({phi: 3.141592653589793, lam: 3.141592653589793})
 
         self.assertEqual(str(_text_circuit_drawer(circuit)), expected)
+
+    def test_text_pi_param_expr(self):
+        """Text pi in circuit with parameter expression."""
+        expected = '\n'.join(["     ┌───────────────────────┐",
+                              "q_0: ┤ RX((pi - x)*(pi - y)) ├",
+                              "     └───────────────────────┘"])
+
+        x, y = Parameter('x'), Parameter('y')
+        circuit = QuantumCircuit(1)
+        circuit.rx((pi - x) * (pi - y), 0)
+        self.assertEqual(circuit.draw(output='text').single_string(), expected)
 
 
 class TestTextDrawerVerticalCompressionLow(QiskitTestCase):
@@ -1796,6 +1808,7 @@ class TestTextConditional(QiskitTestCase):
 
         self.assertEqual(str(_text_circuit_drawer(circuit)), expected)
 
+    @unittest.skip("Add back when Multiplexer is implemented in terms of UCGate")
     def test_conditional_multiplexer(self):
         """ Test Multiplexer."""
         cx_multiplexer = Gate('multiplexer', 2, [numpy.eye(2), numpy.array([[0, 1], [1, 0]])])
@@ -2324,6 +2337,30 @@ class TestTextControlledGate(QiskitTestCase):
         ccghz = ghz.control(3)
         circuit = QuantumCircuit(6)
         circuit.append(ccghz, [0, 2, 5, 1, 3, 4])
+
+        self.assertEqual(str(_text_circuit_drawer(circuit)), expected)
+
+    def test_controlled_composite_gate_even_label(self):
+        """Controlled composite gates (top and bottom) with a even label length"""
+        expected = '\n'.join(["                 ",
+                              "q_0: |0>────■────",
+                              "        ┌───┴───┐",
+                              "q_1: |0>┤0      ├",
+                              "        │       │",
+                              "q_2: |0>┤1 cghz ├",
+                              "        │       │",
+                              "q_3: |0>┤2      ├",
+                              "        └───┬───┘",
+                              "q_4: |0>────■────",
+                              "                 "])
+        ghz_circuit = QuantumCircuit(3, name='cghz')
+        ghz_circuit.h(0)
+        ghz_circuit.cx(0, 1)
+        ghz_circuit.cx(1, 2)
+        ghz = ghz_circuit.to_gate()
+        ccghz = ghz.control(2)
+        circuit = QuantumCircuit(5)
+        circuit.append(ccghz, [4, 0, 1, 2, 3])
 
         self.assertEqual(str(_text_circuit_drawer(circuit)), expected)
 
@@ -2947,6 +2984,7 @@ class TestTextInitialValue(QiskitTestCase):
     """Testing the initial_state parameter"""
 
     def setUp(self) -> None:
+        super().setUp()
         qr = QuantumRegister(2, 'q')
         cr = ClassicalRegister(2, 'c')
         self.circuit = QuantumCircuit(qr, cr)

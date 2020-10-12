@@ -11,7 +11,7 @@
 # that they have been altered from the originals.
 
 
-"""Test Qiskit's inverse gate operation."""
+"""Test Qiskit's controlled gate operation."""
 
 import unittest
 from test import combine
@@ -21,7 +21,7 @@ from ddt import ddt, data, unpack
 
 from qiskit import QuantumRegister, QuantumCircuit, execute, BasicAer, QiskitError
 from qiskit.test import QiskitTestCase
-from qiskit.circuit import ControlledGate
+from qiskit.circuit import ControlledGate, Parameter
 from qiskit.circuit.exceptions import CircuitError
 from qiskit.quantum_info.operators.predicates import matrix_equal, is_unitary_matrix
 from qiskit.quantum_info.random import random_unitary
@@ -71,6 +71,11 @@ class TestControlledGate(QiskitTestCase):
         """Test the creation of a controlled U1 gate."""
         theta = 0.5
         self.assertEqual(PhaseGate(theta).control(), CPhaseGate(theta))
+
+    def test_double_controlled_phase(self):
+        """Test the creation of a controlled phase gate."""
+        theta = 0.5
+        self.assertEqual(PhaseGate(theta).control(2), MCPhaseGate(theta, 2))
 
     def test_controlled_u1(self):
         """Test the creation of a controlled U1 gate."""
@@ -135,7 +140,7 @@ class TestControlledGate(QiskitTestCase):
         """Test the instantiation of a controlled swap gate with explicit definition."""
         swap = SwapGate()
         cswap = ControlledGate('cswap', 3, [], num_ctrl_qubits=1,
-                               definition=swap.definition)
+                               definition=swap.definition, base_gate=swap)
         self.assertEqual(swap.definition, cswap.definition)
 
     def test_multi_controlled_composite_gate(self):
@@ -544,6 +549,19 @@ class TestControlledGate(QiskitTestCase):
             with self.subTest(msg='control state = {}'.format(ctrl_state)):
                 self.assertTrue(matrix_equal(simulated, expected))
 
+    def test_mcry_defaults_to_vchain(self):
+        """Test mcry defaults to the v-chain mode if sufficient work qubits are provided."""
+        circuit = QuantumCircuit(5)
+        control_qubits = circuit.qubits[:3]
+        target_qubit = circuit.qubits[3]
+        additional_qubits = circuit.qubits[4:]
+        circuit.mcry(0.2, control_qubits, target_qubit, additional_qubits)
+
+        # If the v-chain mode is selected, all qubits are used. If the noancilla mode would be
+        # selected, the bottom qubit would remain unused.
+        dag = circuit_to_dag(circuit)
+        self.assertEqual(len(list(dag.idle_wires())), 0)
+
     @data(1, 2)
     def test_mcx_gates_yield_explicit_gates(self, num_ctrl_qubits):
         """Test the creating a MCX gate yields the explicit definition if we know it."""
@@ -652,6 +670,15 @@ class TestControlledGate(QiskitTestCase):
         cugate = ugate.control(num_ctrl_qubits, ctrl_state=ctrl_state)
         ref_mat = _compute_control_matrix(umat, num_ctrl_qubits, ctrl_state=ctrl_state)
         self.assertEqual(Operator(cugate), Operator(ref_mat))
+
+    def test_controlled_controlled_rz(self):
+        """Test that UnitaryGate with control returns params."""
+        qc = QuantumCircuit(1)
+        qc.rz(0.2, 0)
+        controlled = QuantumCircuit(2)
+        controlled.compose(qc.control(), inplace=True)
+        self.assertEqual(Operator(controlled), Operator(CRZGate(0.2)))
+        self.assertEqual(Operator(controlled), Operator(RZGate(0.2).control()))
 
     def test_controlled_controlled_unitary(self):
         """Test that global phase in iso decomposition of unitary is handled."""
@@ -774,7 +801,7 @@ class TestControlledGate(QiskitTestCase):
         self.assertEqual(unrolled_dag, ref_dag)
 
     @data(*ControlledGate.__subclasses__())
-    def test_base_gate_setting(self, gate_class):
+    def test_standard_base_gate_setting(self, gate_class):
         """Test all gates in standard extensions which are of type ControlledGate
         and have a base gate setting.
         """
@@ -787,10 +814,19 @@ class TestControlledGate(QiskitTestCase):
 
         base_gate = gate_class(*free_params)
         cgate = base_gate.control()
-        self.assertEqual(base_gate.base_gate, cgate.base_gate)
 
-    @data(*[gate for name, gate in allGates.__dict__.items() if isinstance(gate, type)])
-    def test_all_inverses(self, gate):
+        # the base gate of CU is U (3 params), the base gate of CCU is CU (4 params)
+        if gate_class == CUGate:
+            self.assertListEqual(cgate.base_gate.params[:3], base_gate.base_gate.params[:3])
+        else:
+            self.assertEqual(base_gate.base_gate, cgate.base_gate)
+
+    @combine(
+        gate=[gate for gate in allGates.__dict__.values() if isinstance(gate, type)],
+        num_ctrl_qubits=[1, 2],
+        ctrl_state=[None, 0, 1],
+    )
+    def test_all_inverses(self, gate, num_ctrl_qubits, ctrl_state):
         """Test all gates in standard extensions except those that cannot be controlled
         or are being deprecated.
         """
@@ -801,7 +837,10 @@ class TestControlledGate(QiskitTestCase):
                 numargs = len(_get_free_params(gate))
                 args = [2] * numargs
                 gate = gate(*args)
-                self.assertEqual(gate.inverse().control(2), gate.control(2).inverse())
+                self.assertEqual(
+                    gate.inverse().control(num_ctrl_qubits, ctrl_state=ctrl_state),
+                    gate.control(num_ctrl_qubits, ctrl_state=ctrl_state).inverse()
+                )
             except AttributeError:
                 # skip gates that do not have a control attribute (e.g. barrier)
                 pass
@@ -885,6 +924,40 @@ class TestControlledGate(QiskitTestCase):
             base_gate.control(num_ctrl_qubits, ctrl_state=2 ** num_ctrl_qubits)
         with self.assertRaises(CircuitError):
             base_gate.control(num_ctrl_qubits, ctrl_state='201')
+
+    def test_base_gate_params_reference(self):
+        """
+        Test all gates in standard extensions which are of type ControlledGate and have a base gate
+        setting have params which reference the one in their base gate.
+        """
+        num_ctrl_qubits = 1
+        for gate_class in ControlledGate.__subclasses__():
+            with self.subTest(i=repr(gate_class)):
+                num_free_params = len(_get_free_params(gate_class.__init__, ignore=['self']))
+                free_params = [0.1 * (i + 1) for i in range(num_free_params)]
+                if gate_class in [MCU1Gate, MCPhaseGate]:
+                    free_params[1] = 3
+                elif gate_class in [MCXGate]:
+                    free_params[0] = 3
+                base_gate = gate_class(*free_params)
+                if base_gate.params:
+                    cgate = base_gate.control(num_ctrl_qubits)
+                    self.assertIs(cgate.base_gate.params, cgate.params)
+
+    def test_assign_parameters(self):
+        """Test assigning parameters to quantum circuit with controlled gate."""
+        qc = QuantumCircuit(2, name='assign')
+        ptest = Parameter('p')
+        gate = CRYGate(ptest)
+        qc.append(gate, [0, 1])
+
+        subs1, subs2 = {ptest: Parameter('a')}, {ptest: Parameter('b')}
+        bound1 = qc.assign_parameters(subs1, inplace=False)
+        bound2 = qc.assign_parameters(subs2, inplace=False)
+
+        self.assertEqual(qc.parameters, {ptest})
+        self.assertEqual(bound1.parameters, {subs1[ptest]})
+        self.assertEqual(bound2.parameters, {subs2[ptest]})
 
     @data(-1, 0, 1.4, '1', 4, 10)
     def test_improper_num_ctrl_qubits(self, num_ctrl_qubits):
@@ -1000,7 +1073,7 @@ class TestOpenControlledToMatrix(QiskitTestCase):
         try:
             actual = cgate.to_matrix()
         except CircuitError as cerr:
-            self.skipTest(cerr)
+            self.skipTest(str(cerr))
         self.assertTrue(np.allclose(actual, target))
 
 
@@ -1097,7 +1170,6 @@ class TestControlledStandardGates(QiskitTestCase):
             args[1] = 2
         elif issubclass(gate_class, MCXGate):
             args = [5]
-
         gate = gate_class(*args)
 
         for ctrl_state in {ctrl_state_ones, ctrl_state_zeros, ctrl_state_mixed}:
